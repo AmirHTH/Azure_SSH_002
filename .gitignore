@@ -27,3 +27,7 @@ wordcountjava/target/maven-status/maven-compiler-plugin/testCompile/default-test
 
 #folder
 */target/*
+wordcountjava/.classpath
+wordcountjava/.project
+wordcountjava/.settings/org.eclipse.jdt.core.prefs
+wordcountjava/.settings/org.eclipse.m2e.core.prefs
