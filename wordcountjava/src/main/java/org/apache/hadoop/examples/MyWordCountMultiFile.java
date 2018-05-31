@@ -9,12 +9,16 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+import org.apache.hadoop.conf.Configured;
 
 
-public class MyWordCountMultiFile {
+public class MyWordCountMultiFile extends Configured implements Tool {
 
 
   public static class TokenizerMapper extends Mapper<Object, Text, Text, IntWritable>{
@@ -24,12 +28,6 @@ public class MyWordCountMultiFile {
 
     public void map(Object key, Text value, Context context ) throws IOException, InterruptedException {
       
-    /*StringTokenizer itr = new StringTokenizer(value.toString());
-      while (itr.hasMoreTokens()) {
-        word.set(itr.nextToken());
-        context.write(word, one);
-      }*/
-      
       String line = value.toString().trim();
       String[] fields = line.split(";");
       String distrito = fields[17];
@@ -38,11 +36,9 @@ public class MyWordCountMultiFile {
 
     }
   }
-  
  
 
-  public static class IntSumReducer
-       extends Reducer<Text,IntWritable,Text,IntWritable> {
+  public static class IntSumReducer   extends Reducer<Text,IntWritable,Text,IntWritable> {
     private IntWritable result = new IntWritable();
 
     public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
@@ -52,50 +48,44 @@ public class MyWordCountMultiFile {
       }
       result.set(sum);
       context.write(key, result);
-      //context.write(key, new IntWritable(sum));
+
     }
   }
 
   public static void main(String[] args) throws Exception {
-    Configuration conf = new Configuration();
-    //conf.set("key.value.separator.in.input.line", ";");
-    String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
-    
-    Job job = new Job(conf, "MyWordCountMultiFile");
-
-    job.setJarByClass(MyWordCountMultiFile.class);
-    //job.setMapperClass(TokenizerMapper.class);
-    //job.setMapperClass(Map.class);
-    job.setCombinerClass(IntSumReducer.class);
-    job.setNumReduceTasks(2);
-    job.setReducerClass(IntSumReducer.class);
-    job.setOutputKeyClass(Text.class);
-    job.setOutputValueClass(IntWritable.class);
-    
-    //MultipleInputs.addInputPath(job, new Path(args[0]), FileInputFormat.class, TokenizerMapper.class);
-    //MultipleInputs.addInputPath(conf, new Path(args[1]), FileInputFormat.class);
-    
-    if (args.length>=1 ) {
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[0]));
-    } 
-
-    if (args.length>=2 ) {
-        MultipleInputs.addInputPath(job, new Path(otherArgs[1]), FileInputFormat.class, TokenizerMapper.class);
-        job.setMapperClass(TokenizerMapper.class);
-    }
-
-    if (args.length>=3 ) {
-        MultipleInputs.addInputPath(job, new Path(otherArgs[2]), FileInputFormat.class, TokenizerMapper.class);
-        job.setMapperClass(TokenizerMapper.class);
-    }
-
-    if (args.length>=4 ) {
-        MultipleInputs.addInputPath(job, new Path(otherArgs[3]), FileInputFormat.class, TokenizerMapper.class);
-        job.setMapperClass(TokenizerMapper.class);
-    }
-    
-    
-    System.exit(job.waitForCompletion(true) ? 0 : 1);
+    System.exit(ToolRunner.run(new MyWordCountMultiFile(), args));
+   
   }
+
+    @Override
+    public int run(String[] args) throws Exception {
+        Configuration conf = new Configuration();
+
+        String[] otherArgStrings = new GenericOptionsParser(conf, args).getRemainingArgs();
+
+        if (otherArgStrings.length != 3) {
+            System.out.println("USAGE: org.apache.hadoop.examples.MyWordCountMultiFile <IN_1_FILE_CSV> <IN_2_FILE_CSV> <OUT_DESTINATION_FILE>");
+            return 2;
+        }
+
+        Job job = new Job(conf, "MyWordCountMultiFile");
+    
+        job.setJarByClass(MyWordCountMultiFile.class);
+       
+        MultipleInputs.addInputPath(job, new Path(otherArgStrings[0]), TextInputFormat.class, TokenizerMapper.class);
+        MultipleInputs.addInputPath(job, new Path(otherArgStrings[1]), TextInputFormat.class, TokenizerMapper.class);
+        FileOutputFormat.setOutputPath(job, new Path(otherArgStrings[2]));
+        
+        job.setReducerClass(IntSumReducer.class);
+
+       //job.setNumReduceTasks(1);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+    
+        return(job.waitForCompletion(true) ? 0 : 1);
+        
+
+    }
 }
